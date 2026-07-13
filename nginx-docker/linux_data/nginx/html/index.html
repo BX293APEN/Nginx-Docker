@@ -1,27 +1,16 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-<meta charset="UTF-8">
-<title>SQL実行くん</title>
-<style>
-    body          { font-family: sans-serif; margin: 2rem; }
-    textarea      { width: 100%; max-width: 600px; box-sizing: border-box; }
-    table.result  { border-collapse: collapse; margin-top: 1rem; }
-    table.result td { border: 1px solid #999; padding: 4px 8px; }
-    p.error       { color: #c00; }
-    p.ok          { color: #060; }
-</style>
-</head>
-<body>
-<h1>SQL実行くん (MySQL連携)</h1>
-
-<!--main.pyに遷移用-->
-<form method="POST" action="/cgi-bin/main.py">
-    <label for="sql">SQL文</label><br>
-    <textarea id="sql" name="sql" rows="6" cols="60" placeholder="例: SELECT * FROM users;"></textarea><br>
-    <button type="submit">実行</button>
-</form>
-
-<!-- 実行結果は送信後、cgi-bin/main.py が生成する同デザインのページ下部に表示される -->
-</body>
+    <head>
+        <meta charset="UTF-8">
+        <title>
+            SQL実行くん
+        </title>
+    </head>
+    <body>
+    </body>
+    <footer>
+        <script>
+            window.location.replace("/cgi-bin/main.py");
+        </script>
+    </footer>
 </html>

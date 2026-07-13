@@ -17,7 +17,7 @@ from urllib.parse import parse_qs
 
 # 同じディレクトリのMySQAPI.pyをimportできるようにする
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from MySQAPI import MySQAPI
+from view.MySQAPI import MySQAPI
 
 
 def read_post_sql():
@@ -88,7 +88,7 @@ def render_result_html(sql, ok, result):
 
 def render_page(sql, result_html):
     """
-    #### ページ全体のHTMLを生成する（index.htmlと共通のデザインを使用）
+    #### ページ全体のHTMLを生成する
 
     | 引数 | 型 | 説明 |
     | --- | --- | --- |
