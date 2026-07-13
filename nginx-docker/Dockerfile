@@ -15,6 +15,10 @@ ARG LANG
 ENV USER_ID=1001
 ENV GROUP_ID=1001
 
+# start.sh(起動後にrootから権限を落とす対象ユーザーの特定)から参照できるように
+# ARGはビルド時のみ有効なため、実行時にも使えるENVとして複製しておく
+ENV USER_NAME=${USER_NAME}
+
 # RUN 命令はなるべく1つにまとめる
 # コマンドが長くなる場合は \ で改行すること
 # --- 追加したaptパッケージの用途 ---
@@ -58,7 +62,15 @@ RUN apt update && \
 COPY ${ENTRY_POINT} /${ENTRY_DIR}/${ENTRY_POINT}
 RUN chmod +x /${ENTRY_DIR}/${ENTRY_POINT}
 
-USER ${USER_NAME}
+# --- 起動時のユーザーについて ---
+#
+# | 項目 | 実行ユーザー | 理由 |
+# | --- | --- | --- |
+# | コンテナ起動直後(start.sh本体) | root | ボリュームマウントされたcgi-bin配下への`chmod`等、権限昇格が必要な初期化処理を行うため |
+# | Nginx / fcgiwrap(実際にリクエストを処理する部分) | ${USER_NAME} | 外部からの入力を処理するプロセスはrootで動かさず、start.sh内で明示的に${USER_NAME}へ権限を落として起動する |
+#
+# 上記の理由から、ここでは `USER ${USER_NAME}` を指定せず root のままにしておく
+# (権限を落とす処理はイメージビルド時ではなく、start.sh側で毎回の起動時に行う)
 WORKDIR /${ENTRY_DIR}/${WS}
 
 # 起動したら実行するコマンド
