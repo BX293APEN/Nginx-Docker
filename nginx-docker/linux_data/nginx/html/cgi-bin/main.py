@@ -3,42 +3,77 @@
 ### cgi-bin/main.py
 
 `index.html` のフォームから送信されたSQL文を受け取り、`MySQAPI` 経由でMySQLへ送信し、
-結果（またはエラー）を `index.html` と同じデザインのページ下部に表示するCGIスクリプト。
+結果（またはエラー）を同デザインのページ下部に表示するCGIスクリプト。
+
+`CGITEST`（libcgipyのサンプル）と同様に、ページの骨格は`template/html/`配下の
+テンプレートファイルへ分離し、`str.format()`で組み立てる方式を採用する。
+CGIヘッダー（`Content-Type`等）も骨格テンプレート側に含めているため、
+このスクリプト自身はヘッダーを個別に出力する必要が無い。
 
 libcgipy（`httpcgi.CGIHTTP`）によってCGIとして起動されることを前提としており、
-`os.environ` の `REQUEST_METHOD` / `CONTENT_LENGTH` 等を利用して
-標準入出力（`sys.stdin` / `sys.stdout`）経由でリクエスト・レスポンスをやり取りする。
+フォームデータの取得には旧`cgi`モジュール相当の `pycgi.FieldStorage` を、
+例外発生時のサーバー側トレースバック出力には旧`cgitb`モジュール相当の
+`pycgitb.enable` を使用する。
 """
 
 import os
 import sys
 import html
-from urllib.parse import parse_qs
+import traceback
+import pycgi
+import pycgitb
 
-# 同じディレクトリのMySQAPI.pyをimportできるようにする
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# 同じディレクトリのview/MySQAPI.pyをimportできるようにする
+CGI_BIN_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(CGI_BIN_DIR)
 from view.MySQAPI import MySQAPI
+
+TEMPLATE_DIR = os.path.join(CGI_BIN_DIR, "template")
+
+# --- トレースバック出力先の設定 ---
+# 画面(クライアント)には詳細なエラーを出さず、サーバー側の標準エラー出力(コンテナのログ)に
+# 詳細なトレースバックを残すことで、開発時のデバッグをしやすくする
+cgitb = pycgitb.enable(logdir=sys.stderr)
+
+
+def load_template(*relative_path_parts):
+    """
+    #### テンプレートファイルを読み込む
+
+    | 引数 | 型 | 説明 |
+    | --- | --- | --- |
+    | `*relative_path_parts` | `str` | `template/` からの相対パス構成要素(可変長) |
+
+    | 戻り値 | 型 | 説明 |
+    | --- | --- | --- |
+    | `str` | `str` | 読み込んだテンプレートの内容 |
+    """
+    path = os.path.join(TEMPLATE_DIR, *relative_path_parts)
+    with open(path, "r", encoding="UTF-8") as f:
+        return f.read()
 
 
 def read_post_sql():
     """
     #### POSTデータからSQL文を取り出す
 
-    `CONTENT_LENGTH` バイト分だけ標準入力から読み取り、`sql` パラメータの値を取得する。
+    `pycgi.FieldStorage` を用いてフォームデータ（`sql`パラメータ）を取得する。
+    `CONTENT_LENGTH` / `CONTENT_TYPE` 等の読み取りは `FieldStorage` 側が行う。
 
     | 戻り値 | 型 | 説明 |
     | --- | --- | --- |
     | `str` | `str` | フォームから送信されたSQL文（未送信時は空文字） |
     """
-    length = int(os.environ.get("CONTENT_LENGTH", 0) or 0)
-    body   = sys.stdin.buffer.read(length).decode("utf-8", "replace") if length else ""
-    params = parse_qs(body)
-    return params.get("sql", [""])[0]
+    form = pycgi.FieldStorage()
+    return form.getfirst("sql", "")
 
 
 def run_sql(sql):
     """
     #### SQL文をMySQLへ送信して実行する
+
+    失敗した場合は、詳細なトレースバックを `pycgitb` 経由でサーバー側へ出力しつつ、
+    画面に表示するのはエラーメッセージのみに留める。
 
     | 引数 | 型 | 説明 |
     | --- | --- | --- |
@@ -53,7 +88,8 @@ def run_sql(sql):
         with MySQAPI() as db:
             return True, db.send_sql(sql)
     except Exception as e:
-        return False, str(e)
+        cgitb.handler(traceback.format_exc())  # 詳細なトレースバックはサーバー側(標準エラー)へ
+        return False, str(e)                   # 画面には簡潔なメッセージのみ表示
 
 
 def render_result_html(sql, ok, result):
@@ -90,6 +126,10 @@ def render_page(sql, result_html):
     """
     #### ページ全体のHTMLを生成する
 
+    `template/html/index.html`(骨格・CGIヘッダー付き)へ
+    `template/html/body.html`(フォーム＋結果)と`template/css/main.css`を
+    それぞれ埋め込んで、レスポンス全体(ヘッダー含む)を組み立てる。
+
     | 引数 | 型 | 説明 |
     | --- | --- | --- |
     | `sql` | `str` | フォームに再表示するSQL文 |
@@ -97,35 +137,20 @@ def render_page(sql, result_html):
 
     | 戻り値 | 型 | 説明 |
     | --- | --- | --- |
-    | `str` | `str` | 出力するHTML全体 |
+    | `str` | `str` | CGIヘッダーを含む、出力するレスポンス全体 |
     """
-    return f"""<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<title>SQL実行くん</title>
-<style>
-    body          {{ font-family: sans-serif; margin: 2rem; }}
-    textarea      {{ width: 100%; max-width: 600px; box-sizing: border-box; }}
-    table.result  {{ border-collapse: collapse; margin-top: 1rem; }}
-    table.result td {{ border: 1px solid #999; padding: 4px 8px; }}
-    p.error       {{ color: #c00; }}
-    p.ok          {{ color: #060; }}
-</style>
-</head>
-<body>
-<h1>SQL実行くん (MySQL連携)</h1>
+    body = load_template("html", "body.html").format(
+        sql    = html.escape(sql),
+        result = result_html,
+    )
 
-<form method="POST" action="/cgi-bin/main.py">
-    <label for="sql">SQL文</label><br>
-    <textarea id="sql" name="sql" rows="6" cols="60">{html.escape(sql)}</textarea><br>
-    <button type="submit">実行</button>
-</form>
-
-{result_html}
-</body>
-</html>
-"""
+    return load_template("html", "index.html").format(
+        lang  = "ja",
+        title = "SQL実行くん",
+        head  = "",
+        css   = load_template("css", "main.css"),
+        html  = body,
+    )
 
 
 def main():
@@ -133,15 +158,13 @@ def main():
     #### エントリポイント
 
     CGIとして呼び出された際の一連の処理（POSTデータ取得 → SQL実行 → HTML出力）を行う。
-    レスポンスはCGIの仕様に従い、ヘッダー（`Content-Type` 等）と空行、続けて本文の順に
-    標準出力（実体はNginxから中継されたクライアントソケット）へ書き出す。
+    `render_page()` が返す文字列にはCGIヘッダー（`Content-Type`等）と空行、
+    続けて本文が既に含まれているため、そのまま標準出力へ書き出すだけでよい。
     """
     sql = read_post_sql() if os.environ.get("REQUEST_METHOD") == "POST" else ""
     ok, result = (True, None) if not sql else run_sql(sql)
-    body = render_page(sql, render_result_html(sql, ok, result))
 
-    sys.stdout.write("Content-Type: text/html; charset=UTF-8\r\n\r\n")
-    sys.stdout.write(body)
+    sys.stdout.write(render_page(sql, render_result_html(sql, ok, result)))
     sys.stdout.flush()
 
 

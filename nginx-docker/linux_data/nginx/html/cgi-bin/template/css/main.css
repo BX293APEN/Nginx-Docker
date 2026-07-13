@@ -1,0 +1,28 @@
+body {
+    font-family: sans-serif;
+    margin: 2rem;
+}
+
+textarea {
+    width: 100%;
+    max-width: 600px;
+    box-sizing: border-box;
+}
+
+table.result {
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+table.result td {
+    border: 1px solid #999;
+    padding: 4px 8px;
+}
+
+p.error {
+    color: #c00;
+}
+
+p.ok {
+    color: #060;
+}
