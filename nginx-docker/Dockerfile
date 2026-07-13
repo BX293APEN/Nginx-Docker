@@ -17,11 +17,18 @@ ENV GROUP_ID=1001
 
 # RUN 命令はなるべく1つにまとめる
 # コマンドが長くなる場合は \ で改行すること
+# --- 追加したaptパッケージの用途 ---
+#
+# | パッケージ | 用途 |
+# | --- | --- |
+# | `nginx` | 静的ファイル配信 + `/cgi-bin/`配下をfcgiwrapへFastCGI中継 |
+# | `fcgiwrap` | FastCGI(Nginx側) ⇔ CGI(標準入出力・環境変数)の変換ラッパー本体 |
+# | `spawn-fcgi` | `fcgiwrap`をFastCGIプロセスとして起動・待受させるためのスポナー |
 RUN apt update && \
     apt upgrade -y && \
     apt install -y \
     sudo nano iproute2 iputils-ping language-pack-ja \
-    nginx python3 python3-pip && \
+    nginx fcgiwrap spawn-fcgi python3 python3-pip && \
     useradd -m -s /bin/bash -u ${USER_ID} ${USER_NAME} && \
     usermod -aG sudo ${USER_NAME} && \
     echo "root:${PASSWORD}" | chpasswd && \
@@ -30,8 +37,15 @@ RUN apt update && \
     update-locale LANG=${LANG} && \
     pip install --break-system-packages \
     mysql-connector-python libcgipy
-    # mysql-connector-python : MySQAPI.py がMySQLへ接続するために使用
-    # libcgipy               : cgi-bin配下のスクリプトをCGIとして実行するHTTPサーバー(main.pyの実行に使用)
+    # --- pipパッケージの用途 ---
+    #
+    # | パッケージ | 用途 |
+    # | --- | --- |
+    # | `mysql-connector-python` | `MySQAPI.py` がMySQLへ接続するために使用 |
+    # | `libcgipy` | `main.py` が使用する`pycgi`(FieldStorage)・`pycgitb`(簡易ロガー)モジュールを提供(依存関係の`libcgi`経由で自動インストールされる) |
+    #
+    # 補足: 同梱の簡易CGIサーバー(`httpcgi`)はPOST処理にバグがあるため使用しない。
+    #       CGI実行はfcgiwrap(Nginx → FastCGI → CGI変換)へ置き換えている。
 
 COPY ${ENTRY_POINT} /home/${USER_NAME}/${ENTRY_DIR}/${ENTRY_POINT}
 RUN chmod +x /home/${USER_NAME}/${ENTRY_DIR}/${ENTRY_POINT}
