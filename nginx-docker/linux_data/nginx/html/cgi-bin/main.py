@@ -9,13 +9,7 @@ from view.MySQAPI import MySQAPI
 
 def run_sql(sql):
     try:
-        with MySQAPI(
-            host     = "localhost",
-            port     = 3306,
-            user     = "root",
-            password = "root_password",
-            database = "sample_db"
-        ) as db:
+        with MySQAPI() as db:
             return db.send_sql(sql)
     except Exception as e:
         return str(e)
@@ -52,12 +46,12 @@ class WebCGI:
         | 引数 | 型 | 説明 |
         | --- | --- | --- |
         | `sql` | `str` | フォームに再表示するSQL文 |
-        | `result_html` | `str` | 下部に埋め込む結果HTML |
 
         | 戻り値 | 型 | 説明 |
         | --- | --- | --- |
         | `str` | `str` | CGIヘッダーを含む、出力するレスポンス全体 |
         """
+        self.log.handler(sql)
         result = run_sql(sql)
         body = self.load_template("html", "body.html").format(
             sql = sql,
@@ -78,4 +72,4 @@ if __name__ == "__main__":
     form    = pycgi.FieldStorage()
     html    = WebCGI()
 
-    print(html.urls(form.getvalue("sql", default = "SHOW DATABASES;")))
+    print(html.urls(form.getvalue("sqlform", default = "SHOW DATABASES;")))
