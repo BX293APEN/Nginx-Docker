@@ -33,7 +33,8 @@ RUN apt update && \
     usermod -aG sudo ${USER_NAME} && \
     echo "root:${PASSWORD}" | chpasswd && \
     echo "${USER_NAME}:${PASSWORD}" | chpasswd && \
-    mkdir -p /home/${USER_NAME}/${ENTRY_DIR} && \
+    mkdir -p /${ENTRY_DIR}/${WS} && \
+    chown -R ${USER_NAME}:${USER_NAME} /${ENTRY_DIR} && \
     update-locale LANG=${LANG} && \
     pip install --break-system-packages \
     mysql-connector-python libcgipy
@@ -47,11 +48,18 @@ RUN apt update && \
     # 補足: 同梱の簡易CGIサーバー(`httpcgi`)はPOST処理にバグがあるため使用しない。
     #       CGI実行はfcgiwrap(Nginx → FastCGI → CGI変換)へ置き換えている。
 
-COPY ${ENTRY_POINT} /home/${USER_NAME}/${ENTRY_DIR}/${ENTRY_POINT}
-RUN chmod +x /home/${USER_NAME}/${ENTRY_DIR}/${ENTRY_POINT}
+# --- アプリ用ディレクトリの配置について ---
+#
+# | 項目 | 説明 |
+# | --- | --- |
+# | 配置場所 | `/home/${USER_NAME}/...` ではなく `/${ENTRY_DIR}`(ルート直下)に配置する |
+# | 理由 | ホームディレクトリは個人利用(シェル設定・sudo等)前提の権限モデルであり、Nginx/CGIの実行に必要な書き込み権限(run/tmp, ログ等)とは目的が異なるため分離する |
+# | 所有者 | 上記のRUN内で`chown`し、明示的に`${USER_NAME}`に書き込み権限を持たせている |
+COPY ${ENTRY_POINT} /${ENTRY_DIR}/${ENTRY_POINT}
+RUN chmod +x /${ENTRY_DIR}/${ENTRY_POINT}
 
 USER ${USER_NAME}
-WORKDIR /home/${USER_NAME}/${WS}
+WORKDIR /${ENTRY_DIR}/${WS}
 
 # 起動したら実行するコマンド
 # 環境変数は使えないので注意
