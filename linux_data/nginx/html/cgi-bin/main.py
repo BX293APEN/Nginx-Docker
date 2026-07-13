@@ -17,7 +17,7 @@ from urllib.parse import parse_qs
 
 # 同じディレクトリのMySQAPI.pyをimportできるようにする
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from view.MySQAPI import MySQAPI
+from MySQAPI import MySQAPI
 
 
 def read_post_sql():

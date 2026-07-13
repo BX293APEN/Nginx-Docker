@@ -14,7 +14,13 @@ readonly NGINX_HTML="${NGINX_PREFIX}/html"
 
 # --- Nginxが書き込みに使う実行時ディレクトリを用意 ---
 # (linux_dataはボリュームマウントのため、イメージビルド時ではなくここで作成する)
-mkdir -p "${NGINX_PREFIX}/run/tmp"
+# nginx.conf内の *_temp_path で指定した各ディレクトリを全て作成しておく
+mkdir -p \
+    "${NGINX_PREFIX}/run/tmp/client_body" \
+    "${NGINX_PREFIX}/run/tmp/proxy" \
+    "${NGINX_PREFIX}/run/tmp/fastcgi" \
+    "${NGINX_PREFIX}/run/tmp/uwsgi" \
+    "${NGINX_PREFIX}/run/tmp/scgi"
 
 # --- CGI(libcgipy)サーバーをバックグラウンドで起動 ---
 # html配下に移動してから起動することで、/cgi-bin/以下のスクリプトを
