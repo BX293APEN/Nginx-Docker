@@ -1,6 +1,10 @@
 # Nginx-Docker
 - Docker上でNginx CGI DBを簡易的に連携させるプロジェクト
 
+## 実行手順
+1. `docker compose up --build -d`
+1. [アクセス](http://localhost:3000)
+
 ## 必要パッケージ
 
 | パッケージ | 用途 |
@@ -55,7 +59,7 @@ spawn-fcgi \
 | uwsgi_temp_path       | run/tmp/uwsgi | uWSGIを使う際のファイル `/${ENTRY_DIR}/${WS}/nginx/run/tmp/uwsgi` |
 | scgi_temp_path        | run/tmp/scgi | SCGIを使う際のファイル `/${ENTRY_DIR}/${WS}/nginx/run/tmp/scgi` |
 
-##### location設定
+#### location設定
 
 `location ~ ^/cgi-bin/[^/]+\.py$`
 
