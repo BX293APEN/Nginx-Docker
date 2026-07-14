@@ -2,9 +2,12 @@
     <main>
         <h1>MySQLCGI</h1>
 
+        <label>使用中のデータベース: <strong>{database}</strong></label>
+
         <label>SQL文</label>
 
         <form method="POST" action="/cgi-bin/main.py">
+            <input type="hidden" name="database" value="{database}">
             <input
                 class="form-control me-2"
                 type="search"

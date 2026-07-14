@@ -24,10 +24,13 @@
                             Reference
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="shutdown" aria-current="page" href="?sql=SHOW DATABASES;">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" id="shutdown" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             DATABASE
                         </a>
+                        <ul class="dropdown-menu" aria-labelledby="shutdown">
+                            {database}
+                        </ul>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" id="shutdown" aria-current="page" href="?sql=SHOW TABLES;">
