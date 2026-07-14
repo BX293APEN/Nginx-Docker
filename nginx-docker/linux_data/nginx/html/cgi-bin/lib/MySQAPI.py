@@ -29,7 +29,6 @@ class MySQAPI():
         port     = None,
         user     = None,
         password = None,
-        database = None,
     ):
         """
         #### コンストラクタ
@@ -50,7 +49,6 @@ class MySQAPI():
             port     = int(port or os.environ.get("DB_PORT", 3306)),
             user     = user     or os.environ.get("DB_USER", "root"),
             password = password or os.environ.get("DB_PASSWORD", ""),
-            database = database or os.environ.get("DB_NAME", ""),
         )  # データベースとの接続
 
     def __enter__(self):

@@ -32,7 +32,7 @@ RUN apt update && \
     chown -R ${USER_NAME}:${USER_NAME} /${ENTRY_DIR} && \
     update-locale LANG=${LANG} && \
     pip install --break-system-packages \
-    mysql-connector-python libcgipy
+    mysql-connector-python libcgipy markdown
 
 COPY ${ENTRY_POINT} /${ENTRY_DIR}/${ENTRY_POINT}
 RUN chmod +x /${ENTRY_DIR}/${ENTRY_POINT}

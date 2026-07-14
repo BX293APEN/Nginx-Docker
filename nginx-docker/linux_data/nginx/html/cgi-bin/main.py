@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import pycgi, pycgitb
-import os, sys
+import os, sys, markdown
 
 CGI_BIN_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(CGI_BIN_DIR)
@@ -19,6 +19,8 @@ class WebCGI:
         self.TEMPLATE_DIR   = os.path.join(os.path.dirname(CGI_BIN_DIR), "template")
         self.log            = pycgitb.enable()
         self.lang           = lang
+        self.md             = markdown.Markdown(extensions=["extra", "tables", "attr_list"])
+
 
     def load_template(self, *relative_path_parts):
         """
@@ -52,6 +54,21 @@ class WebCGI:
         | --- | --- | --- |
         | `str` | `str` | CGIヘッダーを含む、出力するレスポンス全体 |
         """
+
+        ref = self.md.convert(self.load_template("html", "howtouse.md"))
+        ref = ref.replace(
+            "<table>", 
+            """<table class= "table table-bordered table-striped">"""
+        ).replace(
+            "<td>",
+            """<td class="text-nowrap">"""
+        )
+
+        ref = f"""
+<div class = "pt-4">
+    {ref}
+</div>
+""" 
         self.log.handler(sql)
         result = run_sql(sql)
         body = self.load_template("html", "body.html").format(
@@ -67,7 +84,7 @@ class WebCGI:
             header = self.load_template("html", "header.html"),
             html  = body,
             css = "",
-            footer = ""
+            footer = ref
         )
 
 
