@@ -8,6 +8,11 @@
 | DROP DATABASE | データベースを削除する | `DROP DATABASE {selectdb};` |
 | SHOW DATABASES | 利用可能なデータベース一覧を表示する | `SHOW DATABASES;` |
 
+#### データベースの選択について
+
+画面上部の**プルダウンメニュー**から使用したいデータベースを選択  
+→ このアプリでは`USE データベース名;`は不要
+
 ### テーブル操作
 
 | SQL | 説明 | 例文 |
@@ -98,10 +103,6 @@
 | DATETIME / TIMESTAMP | 日付と時刻を格納する | `created_at DATETIME` |
 | BOOLEAN | 真偽値を格納する(内部的には0または1のTINYINTとして扱われる) | `is_active BOOLEAN` |
 
-## データベースの選択について
-
-画面上部の**プルダウンメニュー**から使用したいデータベースを選択  
-→ `USE データベース名;`は不要
 
 ## 補足
 
