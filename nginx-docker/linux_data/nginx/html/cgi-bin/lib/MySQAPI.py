@@ -49,7 +49,7 @@ class MySQAPI():
             host     = host     or os.environ.get("DB_HOST", "localhost"),
             port     = int(port or os.environ.get("DB_PORT", 3306)),
             user     = user     or os.environ.get("DB_USER", "root"),
-            password = password or os.environ.get("DB_ROOT_PASSWORD", ""),
+            password = password or os.environ.get("DB_ROOT_PASSWORD", "password"),
             database = database or os.environ.get("DB_NAME", ""),
         )  # データベースとの接続
 
