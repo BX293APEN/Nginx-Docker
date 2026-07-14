@@ -15,9 +15,10 @@ def run_sql(sql):
         return str(e)
 
 class WebCGI:
-    def __init__(self):
+    def __init__(self, lang = "ja"):
         self.TEMPLATE_DIR   = os.path.join(CGI_BIN_DIR, "template")
         self.log            = pycgitb.enable()
+        self.lang           = lang
 
     def load_template(self, *relative_path_parts):
         """
@@ -59,8 +60,8 @@ class WebCGI:
         )
 
         return self.load_template("html", "index.html").format(
-            lang  = "ja",
-            title = "SQL実行くん",
+            lang  = self.lang,
+            title = "MySQLCGI",
             head  = "",
             css   = self.load_template("css", "main.css"),
             html  = body,
