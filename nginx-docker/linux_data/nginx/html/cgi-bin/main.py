@@ -9,7 +9,7 @@ from lib.MySQAPI import MySQAPI
 
 def run_sql(sql):
     try:
-        with MySQAPI() as db:
+        with MySQAPI(user="root") as db:
             return db.send_sql(sql)
     except Exception as e:
         return str(e)
@@ -84,7 +84,11 @@ class WebCGI:
             header = self.load_template("html", "header.html"),
             html  = body,
             css = "",
-            footer = ref
+            footer = f"""
+<div class="container pt-3">
+    {ref}
+</div>
+"""
         )
 
 
