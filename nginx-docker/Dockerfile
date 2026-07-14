@@ -14,20 +14,11 @@ ARG LANG
 # 1000以上推奨
 ENV USER_ID=1001
 ENV GROUP_ID=1001
-
-# start.sh(起動後にrootから権限を落とす対象ユーザーの特定)から参照できるように
-# ARGはビルド時のみ有効なため、実行時にも使えるENVとして複製しておく
 ENV USER_NAME=${USER_NAME}
 
 # RUN 命令はなるべく1つにまとめる
 # コマンドが長くなる場合は \ で改行すること
-# --- 追加したaptパッケージの用途 ---
-#
-# | パッケージ | 用途 |
-# | --- | --- |
-# | `nginx` | 静的ファイル配信 + `/cgi-bin/`配下をfcgiwrapへFastCGI中継 |
-# | `fcgiwrap` | FastCGI(Nginx側) ⇔ CGI(標準入出力・環境変数)の変換ラッパー本体 |
-# | `spawn-fcgi` | `fcgiwrap`をFastCGIプロセスとして起動・待受させるためのスポナー |
+
 RUN apt update && \
     apt upgrade -y && \
     apt install -y \
@@ -42,41 +33,8 @@ RUN apt update && \
     update-locale LANG=${LANG} && \
     pip install --break-system-packages \
     mysql-connector-python libcgipy
-    # --- pipパッケージの用途 ---
-    #
-    # | パッケージ | 用途 |
-    # | --- | --- |
-    # | `mysql-connector-python` | `MySQAPI.py` がMySQLへ接続するために使用 |
-    # | `libcgipy` | `main.py` が使用する`pycgi`(FieldStorage)・`pycgitb`(簡易ロガー)モジュールを提供(依存関係の`libcgi`経由で自動インストールされる) |
-    #
-    # 補足: 同梱の簡易CGIサーバー(`httpcgi`)はPOST処理にバグがあるため使用しない。
-    #       CGI実行はfcgiwrap(Nginx → FastCGI → CGI変換)へ置き換えている。
 
-# --- アプリ用ディレクトリの配置について ---
-#
-# | 項目 | 説明 |
-# | --- | --- |
-# | 配置場所 | `/home/${USER_NAME}/...` ではなく `/${ENTRY_DIR}`(ルート直下)に配置する |
-# | 理由 | ホームディレクトリは個人利用(シェル設定・sudo等)前提の権限モデルであり、Nginx/CGIの実行に必要な書き込み権限(run/tmp, ログ等)とは目的が異なるため分離する |
-# | 所有者 | 上記のRUN内で`chown`し、明示的に`${USER_NAME}`に書き込み権限を持たせている |
 COPY ${ENTRY_POINT} /${ENTRY_DIR}/${ENTRY_POINT}
 RUN chmod +x /${ENTRY_DIR}/${ENTRY_POINT}
 
-# --- 起動時のユーザーについて ---
-#
-# | 項目 | 実行ユーザー | 理由 |
-# | --- | --- | --- |
-# | コンテナ起動直後(start.sh本体) | root | ボリュームマウントされたcgi-bin配下への`chmod`等、権限昇格が必要な初期化処理を行うため |
-# | Nginx / fcgiwrap(実際にリクエストを処理する部分) | ${USER_NAME} | 外部からの入力を処理するプロセスはrootで動かさず、start.sh内で明示的に${USER_NAME}へ権限を落として起動する |
-#
-# 上記の理由から、ここでは `USER ${USER_NAME}` を指定せず root のままにしておく
-# (権限を落とす処理はイメージビルド時ではなく、start.sh側で毎回の起動時に行う)
 WORKDIR /${ENTRY_DIR}/${WS}
-
-# 起動したら実行するコマンド
-# 環境変数は使えないので注意
-# ENTRYPOINT ["/Programs/start.sh"] 
-
-# 起動したら実行するコマンド
-# CMD ["/bin/bash", "-c", "while true; do sleep 1000; done"]
-# 無限ループでbashを起動し続ける
