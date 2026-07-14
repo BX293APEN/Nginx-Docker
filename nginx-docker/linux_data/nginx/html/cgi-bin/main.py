@@ -165,7 +165,7 @@ class WebCGI:
         
         ref = self.md.convert(
             self.load_template("html", "howtouse.md").format(
-                selectdb = database,
+                selectdb = database or os.environ.get("DB_NAME", "XXX"),
             )
         )
         ref = ref.replace(
