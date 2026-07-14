@@ -154,7 +154,20 @@ class WebCGI:
         | `str` | `str` | CGIヘッダーを含む、出力するレスポンス全体 |
         """
 
-        ref = self.md.convert(self.load_template("html", "howtouse.md"))
+        self.log.handler(sql)
+
+        with ControlSQL() as db:
+            # データベース一覧を取得
+            databases = db.list_databases()
+            # 実在するものだけを選択中データベースとして扱う
+            database  = database if database in databases else None
+            result = db.run_sql(sql, database = database)
+        
+        ref = self.md.convert(
+            self.load_template("html", "howtouse.md").format(
+                selectdb = database,
+            )
+        )
         ref = ref.replace(
             "<table>", 
             """<table class= "table table-bordered table-striped">"""
@@ -168,14 +181,6 @@ class WebCGI:
     {ref}
 </div>
 """ 
-        self.log.handler(sql)
-
-        with ControlSQL() as db:
-            # データベース一覧を取得
-            databases = db.list_databases()
-            # 実在するものだけを選択中データベースとして扱う
-            database  = database if database in databases else None
-            result = db.run_sql(sql, database = database)
         body = self.load_template("html", "body.html").format(
             sql      = sql,
             result   = result,
@@ -198,7 +203,6 @@ class WebCGI:
 </div>
 """
         )
-
 
 
 if __name__ == "__main__":

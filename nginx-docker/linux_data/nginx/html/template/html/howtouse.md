@@ -2,7 +2,7 @@
 
 | 項目             | SQL例                                                                                  | 説明                   |
 | -------------- | ------------------------------------------------------------------------------------- | -------------------- |
-| データベース作成       | `CREATE DATABASE pendb;`                                                              | 新しいデータベースを作成する       |
+| データベース作成       | `CREATE DATABASE {selectdb};`                                                         | 新しいデータベースを作成する       |
 | テーブル作成         | `CREATE TABLE users (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(100), age INT);` | テーブルを作成する            |
 | データ追加          | `INSERT INTO users (name, age) VALUES ('Taro', 25);`                                  | レコードを追加する            |
 | データ取得          | `SELECT * FROM users;`                                                                | すべてのデータを取得する         |
@@ -24,7 +24,7 @@
 | カラム削除（ALTER）   | `ALTER TABLE users DROP COLUMN email;`                                                | 既存テーブルの列を削除する        |
 | インデックス作成       | `CREATE INDEX idx_name ON users (name);`                                              | 検索を高速化するインデックスを作成する  |
 | テーブル削除         | `DROP TABLE users;`                                                                   | テーブルを削除する            |
-| データベース削除       | `DROP DATABASE pendb;`                                                                | データベースを削除する          |
+| データベース削除       | `DROP DATABASE {selectdb};`                                                           | データベースを削除する          |
 | 並び替え           | `SELECT * FROM users ORDER BY age DESC;`                                              | 指定した列で並び替える          |
 | 件数取得           | `SELECT COUNT(*) FROM users;`                                                         | レコード数を取得する           |
 | グループ化          | `SELECT age, COUNT(*) FROM users GROUP BY age;`                                       | 同じ値ごとに集計する           |
