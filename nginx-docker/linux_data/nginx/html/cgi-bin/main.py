@@ -5,7 +5,7 @@ import os, sys
 
 CGI_BIN_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(CGI_BIN_DIR)
-from view.MySQAPI import MySQAPI
+from lib.MySQAPI import MySQAPI
 
 def run_sql(sql):
     try:
@@ -16,7 +16,7 @@ def run_sql(sql):
 
 class WebCGI:
     def __init__(self, lang = "ja"):
-        self.TEMPLATE_DIR   = os.path.join(CGI_BIN_DIR, "template")
+        self.TEMPLATE_DIR   = os.path.join(os.path.dirname(CGI_BIN_DIR), "template")
         self.log            = pycgitb.enable()
         self.lang           = lang
 
@@ -36,7 +36,7 @@ class WebCGI:
         with open(path, "r", encoding="UTF-8") as f:
             return f.read()
 
-    def urls(self, sql):
+    def urls(self, sql, title = "MySQLCGI"):
         """
         #### ページ全体のHTMLを生成する
 
@@ -61,10 +61,13 @@ class WebCGI:
 
         return self.load_template("html", "index.html").format(
             lang  = self.lang,
-            title = "MySQLCGI",
+            title = title,
             head  = "",
-            css   = self.load_template("css", "main.css"),
+            style = self.load_template("html", "styleConfig.html"),
+            header = self.load_template("html", "header.html"),
             html  = body,
+            css = "",
+            footer = ""
         )
 
 
@@ -73,4 +76,4 @@ if __name__ == "__main__":
     form    = pycgi.FieldStorage()
     html    = WebCGI()
 
-    print(html.urls(form.getvalue("sqlform", default = "SHOW DATABASES;")))
+    print(html.urls(form.getvalue("sql", default = "SHOW DATABASES;")))
