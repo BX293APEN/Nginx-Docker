@@ -39,7 +39,7 @@ class ControlSQL(MySQAPI):
             database,
         )
 
-    def run_sql(self, sql, database = None):
+    def run_sql(self, sql : str, database = None):
         """
         #### SQL文を実行する
 
@@ -55,12 +55,51 @@ class ControlSQL(MySQAPI):
         | --- | --- | --- |
         | `list[tuple] \\| str` | `list` または `str` | 実行結果、または例外発生時のエラーメッセージ |
         """
+
+        if sql.count(";") > 0:
+            sqlexe = sql.split(";")
+        else:
+            sqlexe = [sql]
+        
         try:
             if database:
                 self.send_sql(f"USE `{database}`;")
-            return self.send_sql(sql)
         except Exception as e:
-            return str(e)
+            return f"""
+<div>
+    <h3 class="pt-3">USE `{database}`;</h3>
+    <p>
+        {e}
+    </p>
+</div>
+"""
+        
+        value = ""
+        try:
+            for s in sqlexe:
+                if s == "":
+                    continue
+                result = self.send_sql(s)
+                value += f"""
+<div>
+    <h3 class="pt-3">{s};</h3>
+    <p>
+        {result if isinstance(result, str) else "<br>".join([f"{r}" for r in result])}
+    </p>
+</div>
+"""
+        except Exception as e:
+            # sのSQL文が失敗したら終了
+            value +=  f"""
+<div>
+    <h3 class="pt-3">{s};</h3>
+    <p>
+        {e}
+    </p>
+</div>
+"""
+        finally:
+            return value
 
 
     def list_databases(self):
@@ -182,8 +221,7 @@ class WebCGI:
 </div>
 """ 
         body = self.load_template("html", "body.html").format(
-            sql      = sql,
-            result   = result if isinstance(result, str) else "<br>".join([f"{r}" for r in result]),
+            result   = result,
             database = database or os.environ.get("DB_NAME", "未選択"),
         )
 
