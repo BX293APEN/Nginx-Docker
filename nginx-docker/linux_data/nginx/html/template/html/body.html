@@ -8,13 +8,14 @@
 
         <form method="POST" action="/cgi-bin/main.py">
             <input type="hidden" name="database" value="{database}">
-            <input
+            <textarea
                 class="form-control me-2"
-                type="search"
                 name="sql"
-                placeholder="SHOW DATABASES;" 
+                rows="4"
+                placeholder="SHOW DATABASES;"
                 aria-label="query"
-            >
+            >{sql}</textarea>
+            <button type="submit" class="btn btn-primary mt-2">実行</button>
         </form>
 
         {sql}<br>
