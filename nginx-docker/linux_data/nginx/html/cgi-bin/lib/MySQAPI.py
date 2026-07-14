@@ -81,8 +81,9 @@ class MySQAPI():
         | `list[tuple]` | `list` | 実行結果を全て格納したタプルのリスト |
         """
         self.database.execute(sql)
+        result = self.database.fetchall()  # タプル形式で全て取得 先にデータを読むこと
         self.db_commit()
-        return self.database.fetchall()  # タプル形式で全て取得
+        return result
 
     def db_commit(self):
         """
