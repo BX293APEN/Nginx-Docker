@@ -7,77 +7,77 @@ CGI_BIN_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(CGI_BIN_DIR)
 from lib.MySQAPI import MySQAPI
 
-def run_sql(sql, database = None):
-    """
-    #### SQL文を実行する
+class ControlSQL(MySQAPI):
+    def __init__(
+        self,
+        host     = None,
+        port     = None,
+        user     = "root",
+        password = None,
+        database = None,
+    ):
+        """
+        #### コンストラクタ
 
-    `database` が指定されている場合、先に`USE `database`;`を実行してから
-    本来の`sql`を実行する。
+        `MySQAPI`を継承し、`USE`実行を伴うSQL送信機能を追加する。
+        引数はそのまま`MySQAPI`のコンストラクタへ渡される
+        (未指定項目は`MySQAPI`側で対応する環境変数から取得される)。
 
-    | 引数 | 型 | 説明 |
-    | --- | --- | --- |
-    | `sql` | `str` | 実行するSQL文 |
-    | `database` | `str \\| None` | 事前に`USE`するデータベース名(省略時は`USE`しない) |
-
-    | 戻り値 | 型 | 説明 |
-    | --- | --- | --- |
-    | `list[tuple] \\| str` | `list` または `str` | 実行結果、または例外発生時のエラーメッセージ |
-    """
-    try:
-        with MySQAPI(user="root") as db:
-            if database:
-                db.send_sql(f"USE `{database}`;")
-            return db.send_sql(sql)
-    except Exception as e:
-        return str(e)
-
-
-def list_databases():
-    """
-    #### データベース一覧を取得する
-
-    `SHOW DATABASES;`を実行し、データベース名のみのリストへ変換する。
-
-    | 戻り値 | 型 | 説明 |
-    | --- | --- | --- |
-    | `list[str]` | `list` | データベース名の一覧(取得失敗時は空リスト) |
-    """
-    try:
-        with MySQAPI(user="root") as db:
-            rows = db.send_sql("SHOW DATABASES;")
-        return [row[0] for row in rows]
-    except Exception:
-        return []
-
-
-def build_database_options(databases, selected = None):
-    """
-    #### データベース選択用プルダウンの選択肢HTMLを生成する
-
-    `header.html`の`{database}`プレースホルダーへ埋め込む
-    `<li>`要素(Bootstrapドロップダウンの項目)を組み立てる。
-    各項目は`?database=<db名>&sql=SHOW TABLES;`へのリンクとなり、
-    選択中のデータベースには`active`クラスを付与する。
-
-    | 引数 | 型 | 説明 |
-    | --- | --- | --- |
-    | `databases` | `list[str]` | 表示するデータベース名の一覧 |
-    | `selected` | `str \\| None` | 現在選択中のデータベース名 |
-
-    | 戻り値 | 型 | 説明 |
-    | --- | --- | --- |
-    | `str` | `str` | `<li>`要素を連結したHTML文字列 |
-    """
-    if not databases:
-        return '<li><span class="dropdown-item-text text-muted">データベースがありません</span></li>'
-
-    items = []
-    for name in databases:
-        active = " active" if name == selected else ""
-        items.append(
-            f'<li><a class="dropdown-item{active}" href="?database={name}&sql=SHOW TABLES;">{name}</a></li>'
+        | 引数 | 型 | 説明 |
+        | --- | --- | --- |
+        | `host` | `str \\| None` | 接続先ホスト名(未指定時は環境変数`DB_HOST`) |
+        | `port` | `int \\| None` | 接続先ポート番号(未指定時は環境変数`DB_PORT`) |
+        | `user` | `str` | 接続ユーザー名(既定値`"root"`) |
+        | `password` | `str \\| None` | 接続パスワード(未指定時は環境変数`DB_ROOT_PASSWORD`) |
+        | `database` | `str \\| None` | 使用するデータベース名(未指定時は環境変数`DB_NAME`) |
+        """
+        super().__init__(
+            host,
+            port,
+            user,
+            password,
+            database,
         )
-    return "\n".join(items)
+
+    def run_sql(self, sql, database = None):
+        """
+        #### SQL文を実行する
+
+        `database`が指定されている場合、先に`USE `database`;`を実行してから
+        本来の`sql`を実行する。
+
+        | 引数 | 型 | 説明 |
+        | --- | --- | --- |
+        | `sql` | `str` | 実行するSQL文 |
+        | `database` | `str \\| None` | 事前に`USE`するデータベース名(省略時は`USE`しない) |
+
+        | 戻り値 | 型 | 説明 |
+        | --- | --- | --- |
+        | `list[tuple] \\| str` | `list` または `str` | 実行結果、または例外発生時のエラーメッセージ |
+        """
+        try:
+            if database:
+                self.send_sql(f"USE `{database}`;")
+            return self.send_sql(sql)
+        except Exception as e:
+            return str(e)
+
+
+    def list_databases(self):
+        """
+        #### データベース一覧を取得する
+
+        `SHOW DATABASES;`を実行し、データベース名のみのリストへ変換する。
+
+        | 戻り値 | 型 | 説明 |
+        | --- | --- | --- |
+        | `list[str]` | `list` | データベース名の一覧(取得失敗時は空リスト) |
+        """
+        try:
+            rows = self.send_sql("SHOW DATABASES;")
+            return [row[0] for row in rows]
+        except Exception:
+            return []
 
 class WebCGI:
     def __init__(self, lang = "ja"):
@@ -86,6 +86,34 @@ class WebCGI:
         self.lang           = lang
         self.md             = markdown.Markdown(extensions=["extra", "tables", "attr_list"])
 
+    def build_database_options(self, databases, selected = None):
+        """
+        #### データベース選択用プルダウンの選択肢HTMLを生成する
+
+        `header.html`の`{database}`プレースホルダーへ埋め込む
+        `<li>`要素(Bootstrapドロップダウンの項目)を組み立てる。
+        各項目は`?database=<db名>&sql=SHOW TABLES;`へのリンクとなり、
+        選択中のデータベースには`active`クラスを付与する。
+
+        | 引数 | 型 | 説明 |
+        | --- | --- | --- |
+        | `databases` | `list[str]` | 表示するデータベース名の一覧 |
+        | `selected` | `str \\| None` | 現在選択中のデータベース名 |
+
+        | 戻り値 | 型 | 説明 |
+        | --- | --- | --- |
+        | `str` | `str` | `<li>`要素を連結したHTML文字列 |
+        """
+        if not databases:
+            return '<li><span class="dropdown-item-text text-muted">データベースがありません</span></li>'
+
+        items = []
+        for name in databases:
+            active = " active" if name == selected else ""
+            items.append(
+                f'<li><a class="dropdown-item{active}" href="?database={name}&sql=SHOW TABLES;">{name}</a></li>'
+            )
+        return "\n".join(items)
 
     def load_template(self, *relative_path_parts):
         """
@@ -142,11 +170,12 @@ class WebCGI:
 """ 
         self.log.handler(sql)
 
-        # データベース一覧を取得し、実在するものだけを選択中データベースとして扱う
-        databases = list_databases()
-        database  = database if database in databases else None
-
-        result = run_sql(sql, database = database)
+        with ControlSQL() as db:
+            # データベース一覧を取得
+            databases = db.list_databases()
+            # 実在するものだけを選択中データベースとして扱う
+            database  = database if database in databases else None
+            result = db.run_sql(sql, database = database)
         body = self.load_template("html", "body.html").format(
             sql      = sql,
             result   = result,
@@ -159,7 +188,7 @@ class WebCGI:
             head  = "",
             style = self.load_template("html", "styleConfig.html"),
             header = self.load_template("html", "header.html").format(
-                database = build_database_options(databases, selected = database),
+                database = self.build_database_options(databases, selected = database),
             ),
             html  = body,
             css = "",
