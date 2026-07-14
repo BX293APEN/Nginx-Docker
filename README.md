@@ -15,7 +15,7 @@
 | `mysql-connector-python` | `MySQAPI.py` がMySQLへ接続するために使用 |
 | `libcgipy` | `main.py` が使用する`pycgi`(FieldStorage)・`pycgitb`(簡易ロガー)モジュールを提供(依存関係の`libcgi`経由で自動インストールされる) |
 
-## 実行手順
+## 処理内容
 1. cgi-bin配下のCGIスクリプトに実行権限を付与する (root)
 2. Nginxの実行時ディレクトリを作成し、権限を落とす先のユーザーに所有権を渡す (root)
 3. fcgiwrap を起動 : NginxからのFastCGIリクエストをCGIとして実行する (${USER_NAME})
@@ -23,7 +23,7 @@
 5. コンテナを起動し続けるため無限ループで待機する
 
 
-### FastCGI
+## FastCGI
 
 ```bash
 spawn-fcgi \
@@ -43,7 +43,7 @@ spawn-fcgi \
 | -u | FastCGI プロセスの所有ユーザ指定 |
 | -g | FastCGI プロセスの所有グループ指定 |
 
-### Nginx の設定
+## Nginx の設定
 
 | 項目 | 内容 | 説明 |
 | --- | --- | --- |
@@ -59,7 +59,7 @@ spawn-fcgi \
 | uwsgi_temp_path       | run/tmp/uwsgi | uWSGIを使う際のファイル `/${ENTRY_DIR}/${WS}/nginx/run/tmp/uwsgi` |
 | scgi_temp_path        | run/tmp/scgi | SCGIを使う際のファイル `/${ENTRY_DIR}/${WS}/nginx/run/tmp/scgi` |
 
-#### location設定
+### location設定
 
 `location ~ ^/cgi-bin/[^/]+\.py$`
 
