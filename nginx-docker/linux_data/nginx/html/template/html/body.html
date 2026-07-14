@@ -1,16 +1,21 @@
-<h1>SQL実行くん (MySQL連携)</h1>
+<div class="container pt-3">
+    <main>
+        <h1>MySQLCGI</h1>
 
-<label>SQL文</label><br>
-<form method="POST" action="/cgi-bin/main.py">
-    <input
-        class="form-control me-2"
-        type="search"
-        name="sqlform"
-        placeholder="SHOW DATABASES;" 
-        aria-label="query"
-        id="sql"
-    >
-</form>
+        <label>SQL文</label>
 
-{sql}<br>
-{result}
+        <form method="POST" action="/cgi-bin/main.py">
+            <input
+                class="form-control me-2"
+                type="search"
+                name="sqlform"
+                placeholder="SHOW DATABASES;" 
+                aria-label="query"
+                id="sql"
+            >
+        </form>
+
+        {sql}<br>
+        {result}
+    </main>
+</div>
