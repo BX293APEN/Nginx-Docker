@@ -177,13 +177,13 @@ class WebCGI:
         )
 
         ref = f"""
-<div class = "pt-4">
+<div class = "border-top">
     {ref}
 </div>
 """ 
         body = self.load_template("html", "body.html").format(
             sql      = sql,
-            result   = result,
+            result   = result if isinstance(result, str) else "<br>".join([f"{r}" for r in result]),
             database = database or os.environ.get("DB_NAME", "未選択"),
         )
 

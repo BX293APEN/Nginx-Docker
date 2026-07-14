@@ -1,24 +1,25 @@
 <div class="container pt-3">
     <main>
-        <h1>MySQLCGI</h1>
+        <h1 class="mt-3 border-bottom">MySQLCGI</h1>
 
-        <label>使用中のデータベース: <strong>{database}</strong></label>
+        <h2 class="pt-3">使用中のデータベース: <strong>{database}</strong></h2>
 
-        <label>SQL文</label>
-
-        <form method="POST" action="/cgi-bin/main.py">
+        <form method="POST" action="/cgi-bin/main.py" class ="border-bottom">
             <input type="hidden" name="database" value="{database}">
             <textarea
                 class="form-control me-2"
                 name="sql"
                 rows="4"
-                placeholder="SHOW DATABASES;"
+                placeholder="SQL文を入力"
                 aria-label="query"
-            >{sql}</textarea>
-            <button type="submit" class="btn btn-primary mt-2">実行</button>
+            ></textarea>
+            <button type="submit" class="btn btn-primary mt-2 mb-4">実行</button>
         </form>
 
-        {sql}<br>
-        {result}
+        <h3 class="pt-3">{sql}</h3>
+        <div class = "pb-4">
+            {result}
+        </div>
+        
     </main>
 </div>
