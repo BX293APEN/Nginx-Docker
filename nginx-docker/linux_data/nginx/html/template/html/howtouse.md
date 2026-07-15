@@ -54,6 +54,10 @@
 | DISTINCT | 重複を除いた値を取得する | `SELECT DISTINCT age FROM users;` |
 | LIMIT | 取得件数の上限を指定する | `SELECT * FROM users LIMIT 5;` |
 | COUNT | レコード数を取得する | `SELECT COUNT(*) FROM users;` |
+| SUM | 数値の合計を求める | `SELECT SUM(age) FROM users;` |
+| AVG | 数値の平均を求める | `SELECT AVG(age) FROM users;` |
+| MAX | 最大値を求める | `SELECT MAX(age) FROM users;` |
+| MIN | 最小値を求める | `SELECT MIN(age) FROM users;` |
 | GROUP BY | 同じ値ごとに集計する | `SELECT age, COUNT(*) FROM users GROUP BY age;` |
 | HAVING | 集計結果(GROUP BYの結果)に対して条件で絞り込む | `SELECT age, COUNT(*) FROM users GROUP BY age HAVING COUNT(*) > 1;` |
 | AS | 列や式に別名を付ける | `SELECT name AS user_name FROM users;` |
