@@ -30,7 +30,7 @@ class SessionStore:
     | `store.delete(sid)` | セッションを破棄する |
     """
 
-    def __init__(self, directory="/tmp/mysqlcgi_sessions", ttl_seconds=3600):
+    def __init__(self, directory="/tmp/mysqlcgi_sessions", ttl_seconds=1800):
         """
         #### コンストラクタ
 
@@ -40,7 +40,7 @@ class SessionStore:
         | 引数 | 型 | 説明 |
         | --- | --- | --- |
         | `directory` | `str` | セッションファイルを保存するディレクトリ(既定`/tmp/mysqlcgi_sessions`) |
-        | `ttl_seconds` | `int` | セッションの有効期限・秒(既定`3600` = 1時間) |
+        | `ttl_seconds` | `int` | セッションの有効期限・秒(既定`1800` = 30分) |
         """
         self.directory = directory
         self.ttl_seconds = ttl_seconds

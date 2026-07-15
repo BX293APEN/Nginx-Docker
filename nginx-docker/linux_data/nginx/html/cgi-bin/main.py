@@ -151,11 +151,14 @@ class WebCGI:
         
         # セッションIDをやり取りするCookie名
         self.SESSION_COOKIE_NAME = "session_id"
+        # セッション(Cookie)のタイムアウト時間・秒(30分)
+        self.SESSION_TTL_SECONDS = 30 * 60
         self.log            = pycgitb.enable()
         self.lang           = lang
         self.md             = markdown.Markdown(extensions=["extra", "tables", "attr_list"])
         # ログイン成功時に発行するセッション(user/passwordの紐付け)を管理する
-        self.session_store  = SessionStore()
+        # (タイムアウトはCookie側と合わせて30分とする)
+        self.session_store  = SessionStore(ttl_seconds = self.SESSION_TTL_SECONDS)
 
     def build_database_options(self, databases, selected = None, user = "root"):
         """
@@ -266,14 +269,16 @@ class WebCGI:
         (パスワード入力フォーム)を埋め込んでレスポンス本文を組み立てる。
 
         認証状態はパスワードそのものではなく、Cookieの`session_id`で管理する。
-        `root`は教材用途として常にパスワード無し(環境変数`DB_ROOT_PASSWORD`側の
-        既定値)で接続できる仕様を維持する。`root`以外のユーザは、
+        `root`を含む全てのユーザが以下の同じ認証フローに従う
+        (`root`だけパスワード入力を免除する特別扱いは行わない)。
 
         - `POST`でパスワードが送信された場合はそれを用いて接続を試み、
           成功したら新しいセッションを発行してCookieを返す
         - それ以外の場合は、既存セッションが同じユーザのものであれば
           保存済みのパスワードを使って自動的に再接続する
         - どちらにも該当しなければパスワード入力画面を返す
+
+        発行するCookie・セッションの有効期限は`SESSION_TTL_SECONDS`(30分)。
 
         | 引数 | 型 | 説明 |
         | --- | --- | --- |
@@ -302,27 +307,25 @@ class WebCGI:
         user     = user if (user == "root" or user in users) else "root"
 
         session_id = self.read_session_id()
-        session    = None if user == "root" else self.session_store.load(session_id)
+        session    = self.session_store.load(session_id)
 
         set_cookie_header = ""
         password           = None
         is_new_login       = False
 
-        if user == "root":
-            # root は常に環境変数 DB_ROOT_PASSWORD を使う
-            # (教材用途としてパスワード無しで接続できるのは想定通りの仕様)
-            password = None
-        elif request_method == "POST" and form.getvalue("password", default = None):
+        if request_method == "POST" and form.getvalue("password", default = None):
             # password.html からのログイン送信。POSTボディのみで受け取り、
             # 以降はこのパスワードをURLやHTMLへ一切書き出さない
+            # (root を含む全ユーザ共通のフロー)
             password     = form.getvalue("password")
             is_new_login = True
         elif session and session.get("user") == user:
             # 既存セッションに紐づくパスワードを使って自動的に再接続する
             password = session.get("password")
 
-        # root以外へ切り替えた場合、有効な認証情報が無ければ認証待ちにする
-        need_password = (user != "root" and not password)
+        # 有効な認証情報(POSTされたパスワード、または同一ユーザの
+        # 有効なセッション)が無ければ認証待ちにする。root も例外にしない。
+        need_password = not password
         auth_error    = None
         result        = ""
 
@@ -333,10 +336,13 @@ class WebCGI:
 
                 if is_new_login:
                     # 認証に成功した場合のみ新しいセッションを発行する
+                    # (root を含む全ユーザ共通。Cookie自体の有効期限も
+                    #  SessionStore側のTTLと合わせて30分にする)
                     new_session_id = self.session_store.create(user, password)
                     set_cookie_header = (
                         f"Set-Cookie: {self.SESSION_COOKIE_NAME}={new_session_id}; "
-                        f"Path=/; HttpOnly; SameSite=Lax\r\n"
+                        f"Path=/; HttpOnly; SameSite=Lax; "
+                        f"Max-Age={self.SESSION_TTL_SECONDS}\r\n"
                     )
                     # HTTPS化した際は上記に `; Secure` を追加すること
             except Exception as e:
