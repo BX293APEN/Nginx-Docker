@@ -352,7 +352,7 @@ Max-Age={self.SESSION_TTL_SECONDS} \
         ref = self.md.convert(
             self.load_template("html", "howtouse.md").format(
                 selectdb = database or os.environ.get("DB_NAME", "XXX"),
-                userName = user
+                userName = user,
             )
         )
         ref = ref.replace(
