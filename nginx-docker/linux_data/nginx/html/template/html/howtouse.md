@@ -40,6 +40,7 @@
 
 | SQL | 説明 | 例文 |
 | --- | --- | --- |
+| SELECT 値 | 値を表示する | `SELECT 25;` |
 | SELECT * | すべてのデータを取得する | `SELECT * FROM users;` |
 | SELECT 列指定 | 指定した列のみ取得する | `SELECT name, age FROM users;` |
 | WHERE | 条件に一致するデータを取得する | `SELECT * FROM users WHERE age >= 20;` |
@@ -59,15 +60,71 @@
 | CONCAT | 文字列を連結する | `SELECT CONCAT(name, 'さん') FROM users;` |
 | INNER JOIN | 両テーブルに存在する行のみを結合して取得する | `SELECT u.name, o.product FROM users u INNER JOIN orders o ON u.id = o.user_id;` |
 | LEFT JOIN | 左側テーブルの全行と、一致する右側テーブルの行を取得する | `SELECT u.name, o.product FROM users u LEFT JOIN orders o ON u.id = o.user_id;` |
-| サブクエリ | SQL文の中に別のSQL文を組み込む | `SELECT * FROM users WHERE id IN (SELECT user_id FROM orders);` |
+| ( サブクエリ ) | SQL文の中に別のSQL文を組み込む | `SELECT * FROM users WHERE id IN (SELECT user_id FROM orders);` <br> `SELECT (SELECT age FROM users WHERE name = 'Taro') + (SELECT age FROM users WHERE name = 'Hanako');` |
 | ORDER BY ASC | 指定した列を昇順に並び替える(省略時のデフォルトもASC) | `SELECT * FROM users ORDER BY name ASC;` |
 | ORDER BY DESC | 指定した列を降順に並び替える | `SELECT * FROM users ORDER BY age DESC;` |
 
 #### 昇順・降順について
-- `ORDER BY` は文字コード順(辞書順)で並び替えられる
-- ASCII文字以外の場合は使用している文字コード・照合順序によって並び順が変わる点に注意する。
-- 複数列を指定すると、先に書いた列を優先して並び替え、同じ値の場合に次の列で並び替える (例: `ORDER BY age DESC, name ASC`)。
 
+| 並び順 | SQL |
+| --- | --- |
+| 昇順(デフォルト) | ASC |
+| 降順 | DESC |
+
+- 数値型・日付型の列は**値の大小**で並び替え
+- 文字列型の列は**文字コード順 (辞書順)**で並び替え (ASCII文字以外の場合は使用している文字コード・照合順序によって並び順が変わる)
+- 複数列を指定すると、先に書いた列を優先して並び替え、同じ値の場合に次の列で並び替える (例 : `ORDER BY age DESC, name ASC`)
+
+#### 演算子・条件式
+
+| SQL | 説明 | 例文 |
+| --- | --- | --- |
+| = | 値が等しいかどうかを判定する | `SELECT * FROM users WHERE age = 25;` |
+| != 又は <> | 値が等しくないかどうかを判定する | `SELECT * FROM users WHERE age != 25;` |
+| > | より大きいかどうかを判定する | `SELECT * FROM users WHERE age > 20;` |
+| >= | 以上かどうかを判定する | `SELECT * FROM users WHERE age >= 20;` |
+| < | より小さいかどうかを判定する | `SELECT * FROM users WHERE age < 20;` |
+| <= | 以下かどうかを判定する | `SELECT * FROM users WHERE age <= 20;` |
+| + - * / | 四則演算を行う | `SELECT age + 1 FROM users;` |
+| % 又は MOD() | 剰余(あまり)を求める | `SELECT age % 2 FROM users;` |
+| NOT | 条件式の真偽を反転する | `SELECT * FROM users WHERE NOT age = 20;` |
+| CASE WHEN | 条件によって返す値を分岐させる | `SELECT name, CASE WHEN age >= 20 THEN '成人' ELSE '未成年' END AS category FROM users;` |
+| IF() | 条件がTRUEかFALSEかで返す値を切り替える | `SELECT IF(age >= 20, '成人', '未成年') FROM users;` |
+| IFNULL() | 値がNULLの場合に代わりの値を返す | `SELECT IFNULL(age, 0) FROM users;` |
+| COALESCE() | 複数の値のうち最初にNULLでない値を返す | `SELECT COALESCE(nickname, name, '不明') FROM users;` |
+| EXISTS | サブクエリの結果が1件でも存在するかを判定する | `SELECT * FROM users u WHERE EXISTS (SELECT 1 FROM orders o WHERE o.user_id = u.id);` |
+
+#### 正規表現
+
+MySQLでは`REGEXP`(別名`RLIKE`)演算子や`REGEXP_LIKE()`などの関数でパターンマッチによる検索・置換ができる。デフォルトでは大文字小文字を区別しない。
+
+| SQL | 説明 | 例文 |
+| --- | --- | --- |
+| REGEXP | 正規表現でパターンに一致するデータを取得する | `SELECT * FROM users WHERE name REGEXP '^Ta';` |
+| NOT REGEXP | 正規表現でパターンに一致しないデータを取得する | `SELECT * FROM users WHERE name NOT REGEXP '^Ta';` |
+| RLIKE | `REGEXP`と同じ(別名) | `SELECT * FROM users WHERE name RLIKE 'ro$';` |
+| REGEXP_LIKE() | 正規表現の一致を真偽値で判定する関数(WHERE句以外でも使用可) | `SELECT *, REGEXP_LIKE(name, '^[A-Z]') AS is_capitalized FROM users;` |
+| REGEXP_REPLACE() | 正規表現に一致した部分を置換する | `SELECT REGEXP_REPLACE(name, '[aeiou]', '*') FROM users;` |
+| REGEXP_SUBSTR() | 正規表現に一致した部分文字列を抽出する | `SELECT REGEXP_SUBSTR(name, '[A-Z][a-z]+') FROM users;` |
+| REGEXP_INSTR() | 正規表現に一致した部分の位置を取得する | `SELECT REGEXP_INSTR(name, '[0-9]') FROM users;` |
+
+**よく使う正規表現のメタ文字**
+
+| 記号 | 意味 | 例 |
+| --- | --- | --- |
+| `^` | 文字列の先頭 | `'^Ta'` → 先頭が`Ta` |
+| `$` | 文字列の末尾 | `'ro$'` → 末尾が`ro` |
+| `.` | 任意の1文字 | `'a.c'` → `abc`, `axc` など |
+| `*` | 直前の文字の0回以上の繰り返し | `'ab*'` → `a`, `ab`, `abb` など |
+| `+` | 直前の文字の1回以上の繰り返し | `'ab+'` → `ab`, `abb` など(`a`は不一致) |
+| `?` | 直前の文字の0回または1回 | `'ab?'` → `a`, `ab` |
+| `[abc]` | 角括弧内のいずれか1文字 | `'[Tt]aro'` → `Taro`, `taro` |
+| `[^abc]` | 角括弧内以外の1文字 | `'[^0-9]'` → 数字以外の1文字 |
+| `[a-z]` | 範囲指定(a〜zのいずれか1文字) | `'^[a-z]'` → 先頭が小文字 |
+| `{{n,m}}` | 直前の文字がn回以上m回以下の繰り返し | `'a{{2,3}}'` → `aa`, `aaa` |
+| `\|` | いずれかのパターンに一致(OR) | `'Taro\|Hanako'` → `Taro`または`Hanako` |
+| `\d` | 数字1文字(MySQL 8.0.4以降) | `'\\d{{3}}'` → 数字3桁 |
+| `\s` | 空白文字1文字(MySQL 8.0.4以降) | `'a\\sb'` → `a b` |
 
 ### トランザクション
 
