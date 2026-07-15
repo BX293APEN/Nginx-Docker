@@ -25,11 +25,11 @@ class ControlSQL(MySQAPI):
 
         | 引数 | 型 | 説明 |
         | --- | --- | --- |
-        | `host` | `str \\| None` | 接続先ホスト名(未指定時は環境変数`DB_HOST`) |
-        | `port` | `int \\| None` | 接続先ポート番号(未指定時は環境変数`DB_PORT`) |
-        | `user` | `str` | 接続ユーザー名(既定値`"root"`) |
-        | `password` | `str \\| None` | 接続パスワード(未指定時は環境変数`DB_ROOT_PASSWORD`) |
-        | `database` | `str \\| None` | 使用するデータベース名(未指定時は環境変数`DB_NAME`) |
+        | `host` | `str | None` | 接続先ホスト名(未指定時は環境変数`DB_HOST`) |
+        | `port` | `int | None` | 接続先ポート番号(未指定時は環境変数`DB_PORT`) |
+        | `user` | `str` | 接続ユーザ名(既定値`"root"`) |
+        | `password` | `str | None` | 接続パスワード(未指定時は環境変数`DB_ROOT_PASSWORD`) |
+        | `database` | `str | None` | 使用するデータベース名(未指定時は環境変数`DB_NAME`) |
         """
         super().__init__(
             host,
@@ -49,11 +49,11 @@ class ControlSQL(MySQAPI):
         | 引数 | 型 | 説明 |
         | --- | --- | --- |
         | `sql` | `str` | 実行するSQL文 |
-        | `database` | `str \\| None` | 事前に`USE`するデータベース名(省略時は`USE`しない) |
+        | `database` | `str | None` | 事前に`USE`するデータベース名(省略時は`USE`しない) |
 
         | 戻り値 | 型 | 説明 |
         | --- | --- | --- |
-        | `list[tuple] \\| str` | `list` または `str` | 実行結果、または例外発生時のエラーメッセージ |
+        | `list[tuple] | str` | `list` または `str` | 実行結果、または例外発生時のエラーメッセージ |
         """
 
         if sql.count(";") > 0:
@@ -118,6 +118,23 @@ class ControlSQL(MySQAPI):
         except Exception:
             return []
 
+    def list_users(self):
+        """
+        #### 接続可能なDBユーザ一覧を取得する
+
+        `mysql.user`テーブルを参照し、ユーザ名のみの一覧(重複無し・昇順)へ変換する。
+        この一覧の取得には`root`相当の権限を持つ接続が必要。
+
+        | 戻り値 | 型 | 説明 |
+        | --- | --- | --- |
+        | `list[str]` | `list` | ユーザ名の一覧(取得失敗時は空リスト) |
+        """
+        try:
+            rows = self.send_sql("SELECT DISTINCT User FROM mysql.user WHERE User != '';")
+            return sorted({row[0] for row in rows})
+        except Exception:
+            return []
+
 class WebCGI:
     def __init__(self, lang = "ja"):
         self.TEMPLATE_DIR   = os.path.join(os.path.dirname(CGI_BIN_DIR), "template")
@@ -125,19 +142,23 @@ class WebCGI:
         self.lang           = lang
         self.md             = markdown.Markdown(extensions=["extra", "tables", "attr_list"])
 
-    def build_database_options(self, databases, selected = None):
+    def build_database_options(self, databases, selected = None, user = "root", password = None):
         """
         #### データベース選択用プルダウンの選択肢HTMLを生成する
 
-        `header.html`の`{database}`プレースホルダーへ埋め込む
+        `header.html`の`{database_options}`プレースホルダーへ埋め込む
         `<li>`要素(Bootstrapドロップダウンの項目)を組み立てる。
-        各項目は`?database=<db名>&sql=SHOW TABLES;`へのリンクとなり、
-        選択中のデータベースには`active`クラスを付与する。
+        各項目は`?user=<接続ユーザ>&password=<パスワード>&database=<db名>&sql=SHOW TABLES;`
+        へのリンクとなり、選択中のデータベースには`active`クラスを付与する。
+        `user`/`password`は現在の接続状態を維持するためにそのままクエリへ引き継ぐ
+        (パスワードが平文でURLに残る点に注意)。
 
         | 引数 | 型 | 説明 |
         | --- | --- | --- |
         | `databases` | `list[str]` | 表示するデータベース名の一覧 |
-        | `selected` | `str \\| None` | 現在選択中のデータベース名 |
+        | `selected` | `str | None` | 現在選択中のデータベース名 |
+        | `user` | `str` | 現在接続中のユーザ名(既定値`"root"`) |
+        | `password` | `str | None` | 現在接続中のパスワード(状態維持のためリンクへ引き継ぐ) |
 
         | 戻り値 | 型 | 説明 |
         | --- | --- | --- |
@@ -146,11 +167,47 @@ class WebCGI:
         if not databases:
             return '<li><span class="dropdown-item-text text-muted">データベースがありません</span></li>'
 
+        password = password or ""
         items = []
         for name in databases:
             active = " active" if name == selected else ""
             items.append(
-                f'<li><a class="dropdown-item{active}" href="?database={name}&sql=SHOW TABLES;">{name}</a></li>'
+                f'<li><a class="dropdown-item{active}" '
+                f'href="?user={user}&password={password}&database={name}&sql=SHOW TABLES;">{name}</a></li>'
+            )
+        return "\n".join(items)
+
+    def build_user_options(self, users, selected = None, database = None):
+        """
+        #### DBユーザ選択用プルダウンの選択肢HTMLを生成する
+
+        `header.html`の`{user_options}`プレースホルダーへ埋め込む
+        `<li>`要素(Bootstrapドロップダウンの項目)を組み立てる。
+        各項目は`?user=<ユーザ名>&database=<db名>&sql=SHOW DATABASES;`へのリンクとなり、
+        選択中のユーザには`active`クラスを付与する。
+        `root`以外のユーザを選択した場合、パスワード未指定のため
+        `urls`メソッド側の認証チェックによりパスワード入力画面へ遷移する。
+
+        | 引数 | 型 | 説明 |
+        | --- | --- | --- |
+        | `users` | `list[str]` | 表示するユーザ名の一覧 |
+        | `selected` | `str | None` | 現在選択中のユーザ名 |
+        | `database` | `str | None` | 現在選択中のデータベース名(切替後も維持する) |
+
+        | 戻り値 | 型 | 説明 |
+        | --- | --- | --- |
+        | `str` | `str` | `<li>`要素を連結したHTML文字列 |
+        """
+        if not users:
+            return '<li><span class="dropdown-item-text text-muted">ユーザが設定されていません</span></li>'
+
+        database = database or ""
+        items = []
+        for name in users:
+            active = " active" if name == selected else ""
+            items.append(
+                f'<li><a class="dropdown-item{active}" '
+                f'href="?user={name}&database={database}&sql=SHOW DATABASES;">{name}</a></li>'
             )
         return "\n".join(items)
 
@@ -170,22 +227,27 @@ class WebCGI:
         with open(path, "r", encoding="UTF-8") as f:
             return f.read()
 
-    def urls(self, sql, database = None, title = "MySQLCGI"):
+    def urls(self, sql, database = None, user = "root", password = None, title = "MySQLCGI"):
         """
         #### ページ全体のHTMLを生成する
 
         `template/html/index.html`(骨格・CGIヘッダー付き)へ
-        `template/html/body.html`(フォーム＋結果)と`template/css/main.css`を
-        それぞれ埋め込んで、レスポンス全体(ヘッダー含む)を組み立てる。
+        `template/html/body.html`(フォーム＋結果)、または`root`以外のユーザへの
+        切替時でパスワード未確定の場合は`template/html/password.html`
+        (パスワード入力フォーム)を埋め込んで、レスポンス全体(ヘッダー含む)を組み立てる。
 
-        データベース一覧を取得して`header.html`のプルダウンメニューへ反映し、
-        `database`が実在するデータベース名であれば`USE `database`;`を
-        実行してから`sql`を実行する。
+        データベース一覧・ユーザ一覧は常に既定(`root`)接続で取得して
+        `header.html`のプルダウンメニューへ反映する。
+        `user`が`"root"`以外かつ`password`が未指定、または指定された
+        `user`/`password`での接続に失敗した場合は、SQLを実行せず
+        パスワード入力画面を返す。
 
         | 引数 | 型 | 説明 |
         | --- | --- | --- |
         | `sql` | `str` | フォームに再表示するSQL文 |
-        | `database` | `str \\| None` | プルダウンで選択されたデータベース名 |
+        | `database` | `str | None` | プルダウンで選択されたデータベース名 |
+        | `user` | `str` | SQLを実行する接続ユーザ名(既定値`"root"`) |
+        | `password` | `str | None` | `user`用のパスワード(`root`の場合は不要) |
         | `title` | `str` | ページタイトル |
 
         | 戻り値 | 型 | 説明 |
@@ -195,13 +257,36 @@ class WebCGI:
 
         self.log.handler(sql)
 
-        with ControlSQL() as db:
-            # データベース一覧を取得
-            databases = db.list_databases()
-            # 実在するものだけを選択中データベースとして扱う
-            database  = database if database in databases else None
-            result = db.run_sql(sql, database = database)
-        
+        # データベース一覧・ユーザ一覧は常にroot(既定接続)から取得する
+        with ControlSQL() as admin_db:
+            databases = admin_db.list_databases()
+            users     = admin_db.list_users()
+
+        # 実在するものだけを選択中データベース/ユーザとして扱う
+        database = database if database in databases else None
+        user     = user if (user == "root" or user in users) else "root"
+
+        # user が root に確定した場合、他ユーザの古いパスワードが
+        # 紛れ込んで root への接続に使われることが絶対に無いようにする
+        # (root は常に環境変数 DB_ROOT_PASSWORD を使うべきであり、
+        #  ここで password を破棄しておけば ControlSQL 側で自動的にそちらへフォールバックする)
+        if user == "root":
+            password = None
+
+        # root以外へ切り替えた場合はパスワードが無ければ認証待ちにする
+        need_password = (user != "root" and not password)
+        auth_error    = None
+        result        = ""
+
+        if not need_password:
+            try:
+                with ControlSQL(user = user, password = password) as db:
+                    result = db.run_sql(sql, database = database)
+            except Exception as e:
+                # 接続失敗(パスワード誤りなど)の場合もパスワード入力画面へ戻す
+                need_password = True
+                auth_error    = str(e)
+
         ref = self.md.convert(
             self.load_template("html", "howtouse.md").format(
                 selectdb = database or os.environ.get("DB_NAME", "XXX"),
@@ -220,10 +305,20 @@ class WebCGI:
     {ref}
 </div>
 """ 
-        body = self.load_template("html", "body.html").format(
-            result   = result,
-            database = database or os.environ.get("DB_NAME", "未選択"),
-        )
+        if need_password:
+            body = self.load_template("html", "password.html").format(
+                user     = user,
+                database = database or "",
+                sql      = sql,
+                error    = f'<br><span class="text-danger">{auth_error}</span>' if auth_error else "",
+            )
+        else:
+            body = self.load_template("html", "body.html").format(
+                result   = result,
+                database = database or os.environ.get("DB_NAME", "未選択"),
+                user     = user,
+                password = password or "",
+            )
 
         return self.load_template("html", "index.html").format(
             lang  = self.lang,
@@ -231,7 +326,15 @@ class WebCGI:
             head  = "",
             style = self.load_template("html", "styleConfig.html"),
             header = self.load_template("html", "header.html").format(
-                database = self.build_database_options(databases, selected = database),
+                database_options = self.build_database_options(
+                    databases, selected = database, user = user, password = password,
+                ),
+                user_options = self.build_user_options(
+                    users, selected = user, database = database,
+                ),
+                user     = user,
+                password = password or "",
+                database = database or "",
             ),
             html  = body,
             css = "",
@@ -250,4 +353,6 @@ if __name__ == "__main__":
     print(html.urls(
         form.getvalue("sql", default = "SHOW DATABASES;"),
         database = form.getvalue("database", default = None),
+        user     = form.getvalue("user", default = "root") or "root",
+        password = form.getvalue("password", default = None) or None,
     ))

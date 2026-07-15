@@ -19,21 +19,24 @@
                             Home
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="reboot" aria-current="page" href="#reference">
-                            Reference
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" id="userselect" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            USERS
                         </a>
+                        <ul class="dropdown-menu" aria-labelledby="userselect">
+                            {user_options}
+                        </ul>
                     </li>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" id="shutdown" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <a class="nav-link dropdown-toggle" id="database" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             DATABASE
                         </a>
-                        <ul class="dropdown-menu" aria-labelledby="shutdown">
-                            {database}
+                        <ul class="dropdown-menu" aria-labelledby="database">
+                            {database_options}
                         </ul>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" id="shutdown" aria-current="page" href="?sql=SHOW TABLES;">
+                        <a class="nav-link" id="table" aria-current="page" href="?user={user}&password={password}&database={database}&sql=SHOW TABLES;">
                             TABLE
                         </a>
                     </li>

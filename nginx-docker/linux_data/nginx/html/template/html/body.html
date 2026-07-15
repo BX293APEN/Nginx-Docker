@@ -2,10 +2,15 @@
     <main>
         <h1 class="mt-3 border-bottom">MySQLCGI</h1>
 
-        <h2 class="pt-3">使用中のデータベース: <strong>{database}</strong></h2>
+        <h2 class="pt-3">
+            使用中のデータベース: <strong>{database}</strong><br>
+            接続ユーザー: <strong>{user}</strong>
+        </h2>
 
         <form method="POST" action="/cgi-bin/main.py" class ="border-bottom">
             <input type="hidden" name="database" value="{database}">
+            <input type="hidden" name="user" value="{user}">
+            <input type="hidden" name="password" value="{password}">
             <textarea
                 class="form-control me-2"
                 name="sql"
