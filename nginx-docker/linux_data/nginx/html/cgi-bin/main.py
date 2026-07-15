@@ -9,9 +9,6 @@ sys.path.append(CGI_BIN_DIR)
 from lib.MySQAPI import MySQAPI
 from lib.SessionStore import SessionStore
 
-# セッションIDをやり取りするCookie名
-SESSION_COOKIE_NAME = "session_id"
-
 
 class ControlSQL(MySQAPI):
     def __init__(
@@ -151,6 +148,9 @@ class WebCGI:
         | `lang` | `str` | ページの`lang`属性へ設定する言語コード(既定値`"ja"`) |
         """
         self.TEMPLATE_DIR   = os.path.join(os.path.dirname(CGI_BIN_DIR), "template")
+        
+        # セッションIDをやり取りするCookie名
+        self.SESSION_COOKIE_NAME = "session_id"
         self.log            = pycgitb.enable()
         self.lang           = lang
         self.md             = markdown.Markdown(extensions=["extra", "tables", "attr_list"])
@@ -253,7 +253,7 @@ class WebCGI:
         """
         cookie = SimpleCookie()
         cookie.load(os.environ.get("HTTP_COOKIE", ""))
-        morsel = cookie.get(SESSION_COOKIE_NAME)
+        morsel = cookie.get(self.SESSION_COOKIE_NAME)
         return morsel.value if morsel else None
 
     def urls(self, form, title = "MySQLCGI"):
@@ -335,7 +335,7 @@ class WebCGI:
                     # 認証に成功した場合のみ新しいセッションを発行する
                     new_session_id = self.session_store.create(user, password)
                     set_cookie_header = (
-                        f"Set-Cookie: {SESSION_COOKIE_NAME}={new_session_id}; "
+                        f"Set-Cookie: {self.SESSION_COOKIE_NAME}={new_session_id}; "
                         f"Path=/; HttpOnly; SameSite=Lax\r\n"
                     )
                     # HTTPS化した際は上記に `; Secure` を追加すること
@@ -376,8 +376,10 @@ class WebCGI:
                 user     = user,
             )
 
-        page = self.load_template("html", "index.html").format(
+
+        return self.load_template("html", "index.html").format(
             lang  = self.lang,
+            cookie = set_cookie_header if set_cookie_header else "",
             title = title,
             head  = "",
             style = self.load_template("html", "styleConfig.html"),
@@ -400,19 +402,9 @@ class WebCGI:
 """
         )
 
-        return set_cookie_header, page
-
 
 if __name__ == "__main__":
     form    = pycgi.FieldStorage()
     html    = WebCGI()
 
-    set_cookie_header, page = html.urls(form)
-
-    # CGIレスポンスヘッダーはここで組み立てる
-    # (index.htmlテンプレートは本文のみを保持する)
-    sys.stdout.write("Content-Type: text/html\r\n")
-    if set_cookie_header:
-        sys.stdout.write(set_cookie_header)
-    sys.stdout.write("\r\n")
-    sys.stdout.write(page)
+    print(html.urls(form))
