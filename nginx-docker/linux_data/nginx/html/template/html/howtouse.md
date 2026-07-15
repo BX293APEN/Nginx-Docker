@@ -45,7 +45,7 @@
 | SELECT 列指定 | 指定した列のみ取得する | `SELECT name, age FROM users;` |
 | WHERE | 条件に一致するデータを取得する | `SELECT * FROM users WHERE age >= 20;` |
 | AND / OR | 複数の条件を組み合わせて取得する | `SELECT * FROM users WHERE age >= 20 AND name = 'Taro';` |
-| BETWEEN | 指定範囲内のデータを取得する <br> A以上B以下 : BETWEEN A AND B | `SELECT * FROM users WHERE age BETWEEN 20 AND 30;` |
+| BETWEEN A AND B | A以上B以下のデータを取得する | `SELECT * FROM users WHERE age BETWEEN 20 AND 30;` |
 | IN | 指定した値のいずれかに一致するデータを取得する | `SELECT * FROM users WHERE age IN (20, 25, 30);` |
 | LIKE | 部分一致でデータを検索する(`%`は任意の文字列、`_`は任意の1文字) | `SELECT * FROM users WHERE name LIKE 'Ta%';` |
 | NOT LIKE | LIKE条件に一致しないデータを取得する | `SELECT * FROM users WHERE name NOT LIKE 'Ta%';` |
