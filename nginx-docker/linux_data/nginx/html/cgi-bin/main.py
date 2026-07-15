@@ -2,10 +2,16 @@
 
 import pycgi, pycgitb
 import os, sys, markdown
+from http.cookies import SimpleCookie
 
 CGI_BIN_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(CGI_BIN_DIR)
 from lib.MySQAPI import MySQAPI
+from lib.SessionStore import SessionStore
+
+# セッションIDをやり取りするCookie名
+SESSION_COOKIE_NAME = "session_id"
+
 
 class ControlSQL(MySQAPI):
     def __init__(
@@ -137,28 +143,36 @@ class ControlSQL(MySQAPI):
 
 class WebCGI:
     def __init__(self, lang = "ja"):
+        """
+        #### コンストラクタ
+
+        | 引数 | 型 | 説明 |
+        | --- | --- | --- |
+        | `lang` | `str` | ページの`lang`属性へ設定する言語コード(既定値`"ja"`) |
+        """
         self.TEMPLATE_DIR   = os.path.join(os.path.dirname(CGI_BIN_DIR), "template")
         self.log            = pycgitb.enable()
         self.lang           = lang
         self.md             = markdown.Markdown(extensions=["extra", "tables", "attr_list"])
+        # ログイン成功時に発行するセッション(user/passwordの紐付け)を管理する
+        self.session_store  = SessionStore()
 
-    def build_database_options(self, databases, selected = None, user = "root", password = None):
+    def build_database_options(self, databases, selected = None, user = "root"):
         """
         #### データベース選択用プルダウンの選択肢HTMLを生成する
 
         `header.html`の`{database_options}`プレースホルダーへ埋め込む
         `<li>`要素(Bootstrapドロップダウンの項目)を組み立てる。
-        各項目は`?user=<接続ユーザ>&password=<パスワード>&database=<db名>&sql=SHOW TABLES;`
+        各項目は`?user=<接続ユーザ>&database=<db名>&sql=SHOW TABLES;`
         へのリンクとなり、選択中のデータベースには`active`クラスを付与する。
-        `user`/`password`は現在の接続状態を維持するためにそのままクエリへ引き継ぐ
-        (パスワードが平文でURLに残る点に注意)。
+        認証状態はCookieのセッションIDで維持するため、`password`は
+        リンクに一切含めない。
 
         | 引数 | 型 | 説明 |
         | --- | --- | --- |
         | `databases` | `list[str]` | 表示するデータベース名の一覧 |
         | `selected` | `str | None` | 現在選択中のデータベース名 |
         | `user` | `str` | 現在接続中のユーザ名(既定値`"root"`) |
-        | `password` | `str | None` | 現在接続中のパスワード(状態維持のためリンクへ引き継ぐ) |
 
         | 戻り値 | 型 | 説明 |
         | --- | --- | --- |
@@ -167,13 +181,12 @@ class WebCGI:
         if not databases:
             return '<li><span class="dropdown-item-text text-muted">データベースがありません</span></li>'
 
-        password = password or ""
         items = []
         for name in databases:
             active = " active" if name == selected else ""
             items.append(
                 f'<li><a class="dropdown-item{active}" '
-                f'href="?user={user}&password={password}&database={name}&sql=SHOW TABLES;">{name}</a></li>'
+                f'href="?user={user}&database={name}&sql=SHOW TABLES;">{name}</a></li>'
             )
         return "\n".join(items)
 
@@ -185,7 +198,7 @@ class WebCGI:
         `<li>`要素(Bootstrapドロップダウンの項目)を組み立てる。
         各項目は`?user=<ユーザ名>&database=<db名>&sql=SHOW DATABASES;`へのリンクとなり、
         選択中のユーザには`active`クラスを付与する。
-        `root`以外のユーザを選択した場合、パスワード未指定のため
+        `root`以外のユーザを選択した場合、有効なセッションが無ければ
         `urls`メソッド側の認証チェックによりパスワード入力画面へ遷移する。
 
         | 引数 | 型 | 説明 |
@@ -227,33 +240,55 @@ class WebCGI:
         with open(path, "r", encoding="UTF-8") as f:
             return f.read()
 
-    def urls(self, sql, database = None, user = "root", password = None, title = "MySQLCGI"):
+    def read_session_id(self):
         """
-        #### ページ全体のHTMLを生成する
+        #### リクエストのCookieからセッションIDを取得する
 
-        `template/html/index.html`(骨格・CGIヘッダー付き)へ
-        `template/html/body.html`(フォーム＋結果)、または`root`以外のユーザへの
-        切替時でパスワード未確定の場合は`template/html/password.html`
-        (パスワード入力フォーム)を埋め込んで、レスポンス全体(ヘッダー含む)を組み立てる。
+        環境変数`HTTP_COOKIE`(fastcgi_paramsにより`Cookie`ヘッダーから設定される)
+        を解析し、`SESSION_COOKIE_NAME`の値を取り出す。
 
-        データベース一覧・ユーザ一覧は常に既定(`root`)接続で取得して
-        `header.html`のプルダウンメニューへ反映する。
-        `user`が`"root"`以外かつ`password`が未指定、または指定された
-        `user`/`password`での接続に失敗した場合は、SQLを実行せず
-        パスワード入力画面を返す。
+        | 戻り値 | 型 | 説明 |
+        | --- | --- | --- |
+        | `str | None` | `str` | Cookieに含まれるセッションID(無ければ`None`) |
+        """
+        cookie = SimpleCookie()
+        cookie.load(os.environ.get("HTTP_COOKIE", ""))
+        morsel = cookie.get(SESSION_COOKIE_NAME)
+        return morsel.value if morsel else None
+
+    def urls(self, form, title = "MySQLCGI"):
+        """
+        #### ページ全体を生成する
+
+        `template/html/index.html`(骨格)へ`template/html/body.html`
+        (フォーム＋結果)、または`root`以外のユーザへの切替時で
+        パスワード未確定の場合は`template/html/password.html`
+        (パスワード入力フォーム)を埋め込んでレスポンス本文を組み立てる。
+
+        認証状態はパスワードそのものではなく、Cookieの`session_id`で管理する。
+        `root`は教材用途として常にパスワード無し(環境変数`DB_ROOT_PASSWORD`側の
+        既定値)で接続できる仕様を維持する。`root`以外のユーザは、
+
+        - `POST`でパスワードが送信された場合はそれを用いて接続を試み、
+          成功したら新しいセッションを発行してCookieを返す
+        - それ以外の場合は、既存セッションが同じユーザのものであれば
+          保存済みのパスワードを使って自動的に再接続する
+        - どちらにも該当しなければパスワード入力画面を返す
 
         | 引数 | 型 | 説明 |
         | --- | --- | --- |
-        | `sql` | `str` | フォームに再表示するSQL文 |
-        | `database` | `str | None` | プルダウンで選択されたデータベース名 |
-        | `user` | `str` | SQLを実行する接続ユーザ名(既定値`"root"`) |
-        | `password` | `str | None` | `user`用のパスワード(`root`の場合は不要) |
+        | `form` | `pycgi.FieldStorage` | GETクエリまたはPOSTボディから取得したフォームデータ |
         | `title` | `str` | ページタイトル |
 
         | 戻り値 | 型 | 説明 |
         | --- | --- | --- |
-        | `str` | `str` | CGIヘッダーを含む、出力するレスポンス全体 |
+        | `tuple[str, str]` | `tuple` | `(Set-Cookieヘッダー行(無ければ空文字列), レスポンス本文HTML)` |
         """
+
+        sql             = form.getvalue("sql", default = "SHOW DATABASES;")
+        database        = form.getvalue("database", default = None)
+        user            = form.getvalue("user", default = "root") or "root"
+        request_method  = os.environ.get("REQUEST_METHOD", "GET").upper()
 
         self.log.handler(sql)
 
@@ -266,14 +301,27 @@ class WebCGI:
         database = database if database in databases else None
         user     = user if (user == "root" or user in users) else "root"
 
-        # user が root に確定した場合、他ユーザの古いパスワードが
-        # 紛れ込んで root への接続に使われることが絶対に無いようにする
-        # (root は常に環境変数 DB_ROOT_PASSWORD を使うべきであり、
-        #  ここで password を破棄しておけば ControlSQL 側で自動的にそちらへフォールバックする)
-        if user == "root":
-            password = None
+        session_id = self.read_session_id()
+        session    = None if user == "root" else self.session_store.load(session_id)
 
-        # root以外へ切り替えた場合はパスワードが無ければ認証待ちにする
+        set_cookie_header = ""
+        password           = None
+        is_new_login       = False
+
+        if user == "root":
+            # root は常に環境変数 DB_ROOT_PASSWORD を使う
+            # (教材用途としてパスワード無しで接続できるのは想定通りの仕様)
+            password = None
+        elif request_method == "POST" and form.getvalue("password", default = None):
+            # password.html からのログイン送信。POSTボディのみで受け取り、
+            # 以降はこのパスワードをURLやHTMLへ一切書き出さない
+            password     = form.getvalue("password")
+            is_new_login = True
+        elif session and session.get("user") == user:
+            # 既存セッションに紐づくパスワードを使って自動的に再接続する
+            password = session.get("password")
+
+        # root以外へ切り替えた場合、有効な認証情報が無ければ認証待ちにする
         need_password = (user != "root" and not password)
         auth_error    = None
         result        = ""
@@ -282,6 +330,15 @@ class WebCGI:
             try:
                 with ControlSQL(user = user, password = password) as db:
                     result = db.run_sql(sql, database = database)
+
+                if is_new_login:
+                    # 認証に成功した場合のみ新しいセッションを発行する
+                    new_session_id = self.session_store.create(user, password)
+                    set_cookie_header = (
+                        f"Set-Cookie: {SESSION_COOKIE_NAME}={new_session_id}; "
+                        f"Path=/; HttpOnly; SameSite=Lax\r\n"
+                    )
+                    # HTTPS化した際は上記に `; Secure` を追加すること
             except Exception as e:
                 # 接続失敗(パスワード誤りなど)の場合もパスワード入力画面へ戻す
                 need_password = True
@@ -317,23 +374,21 @@ class WebCGI:
                 result   = result,
                 database = database or os.environ.get("DB_NAME", "未選択"),
                 user     = user,
-                password = password or "",
             )
 
-        return self.load_template("html", "index.html").format(
+        page = self.load_template("html", "index.html").format(
             lang  = self.lang,
             title = title,
             head  = "",
             style = self.load_template("html", "styleConfig.html"),
             header = self.load_template("html", "header.html").format(
                 database_options = self.build_database_options(
-                    databases, selected = database, user = user, password = password,
+                    databases, selected = database, user = user,
                 ),
                 user_options = self.build_user_options(
                     users, selected = user, database = database,
                 ),
                 user     = user,
-                password = password or "",
                 database = database or "",
             ),
             html  = body,
@@ -345,14 +400,19 @@ class WebCGI:
 """
         )
 
+        return set_cookie_header, page
+
 
 if __name__ == "__main__":
     form    = pycgi.FieldStorage()
     html    = WebCGI()
 
-    print(html.urls(
-        form.getvalue("sql", default = "SHOW DATABASES;"),
-        database = form.getvalue("database", default = None),
-        user     = form.getvalue("user", default = "root") or "root",
-        password = form.getvalue("password", default = None) or None,
-    ))
+    set_cookie_header, page = html.urls(form)
+
+    # CGIレスポンスヘッダーはここで組み立てる
+    # (index.htmlテンプレートは本文のみを保持する)
+    sys.stdout.write("Content-Type: text/html\r\n")
+    if set_cookie_header:
+        sys.stdout.write(set_cookie_header)
+    sys.stdout.write("\r\n")
+    sys.stdout.write(page)
