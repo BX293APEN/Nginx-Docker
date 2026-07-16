@@ -155,6 +155,7 @@ class WebCGI:
         # セッション(Cookie)のタイムアウト時間[秒]
         self.SESSION_TTL_SECONDS = 30 * 60
         self.session_store  = SessionStore(ttl_seconds = self.SESSION_TTL_SECONDS)
+        self.defaultUser = os.environ.get("DB_USER", "root")
 
     def build_database_options(self, databases, selected = None, user = "root"):
         """
@@ -281,7 +282,7 @@ class WebCGI:
 
         sql             = form.getvalue("sql", default = "SHOW DATABASES;")
         database        = form.getvalue("database", default = None)
-        user            = form.getvalue("user", default = "root") or "root"
+        user            = form.getvalue("user", default = self.defaultUser)
         request_method  = os.environ.get("REQUEST_METHOD", "GET").upper()
 
         self.log.handler(sql)
@@ -296,7 +297,7 @@ class WebCGI:
 
         # 実在するものだけを選択中データベース/ユーザとして扱う
         database = database if database in databases else None
-        user     = user if (user == "root" or user in users) else "root"
+        user     = user if (user in users) else self.defaultUser
 
         session_id = self.read_session_id()
         session    = self.session_store.load(session_id)
