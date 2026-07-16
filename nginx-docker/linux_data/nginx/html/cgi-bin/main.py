@@ -15,30 +15,24 @@ class ControlSQL(MySQAPI):
         self,
         host     = None,
         port     = None,
-        user     = "root",
+        user     = None,
         password = None,
         database = None,
     ):
         """
-        #### コンストラクタ
-
-        `MySQAPI`を継承し、`USE`実行を伴うSQL送信機能を追加する。
-        引数はそのまま`MySQAPI`のコンストラクタへ渡される
-        (未指定項目は`MySQAPI`側で対応する環境変数から取得される)。
-
         | 引数 | 型 | 説明 |
         | --- | --- | --- |
         | `host` | `str | None` | 接続先ホスト名(未指定時は環境変数`DB_HOST`) |
         | `port` | `int | None` | 接続先ポート番号(未指定時は環境変数`DB_PORT`) |
-        | `user` | `str` | 接続ユーザ名(既定値`"root"`) |
-        | `password` | `str | None` | 接続パスワード(未指定時は環境変数`DB_ROOT_PASSWORD`) |
+        | `user` | `str | None` | 接続ユーザ名(未指定時は環境変数`DB_USER`、既定値`"root"`) |
+        | `password` | `str | None` | 接続パスワード(未指定時は環境変数`DB_PASSWORD`、既定値`"password"`) |
         | `database` | `str | None` | 使用するデータベース名(未指定時は環境変数`DB_NAME`) |
         """
         super().__init__(
             host,
             port,
-            user,
-            password,
+            user or os.environ.get("DB_USER", "root"),
+            password or os.environ.get("DB_PASSWORD", "password"),
             database,
         )
 
@@ -203,8 +197,7 @@ class WebCGI:
         `<li>`要素(Bootstrapドロップダウンの項目)を組み立てる。
         各項目は`?user=<ユーザ名>&database=<db名>&sql=SHOW DATABASES;`へのリンクとなり、
         選択中のユーザには`active`クラスを付与する。
-        `root`以外のユーザを選択した場合、有効なセッションが無ければ
-        `urls`メソッド側の認証チェックによりパスワード入力画面へ遷移する。
+        有効なセッションが無ければ`urls`メソッド側の認証チェックによりパスワード入力画面へ遷移する。
 
         | 引数 | 型 | 説明 |
         | --- | --- | --- |
@@ -265,8 +258,6 @@ class WebCGI:
         """
         #### ページ全体を生成する
 
-        `template/html/index.html`(骨格)へ`template/html/body.html`
-        (フォーム＋結果)、または`root`以外のユーザへの切替時で
         パスワード未確定の場合は`template/html/password.html`
         (パスワード入力フォーム)を埋め込んでレスポンス本文を組み立てる。
 
@@ -295,8 +286,11 @@ class WebCGI:
 
         self.log.handler(sql)
 
-        # データベース一覧・ユーザ一覧は常にroot(既定接続)から取得する
-        with ControlSQL() as admin_db:
+        # データベース一覧・ユーザ一覧は常にrootから取得する
+        with ControlSQL(
+            user     = os.environ.get("DB_ROOT_USER", "root"),
+            password = os.environ.get("DB_ROOT_PASSWORD", "password"),
+        ) as admin_db:
             databases = admin_db.list_databases()
             users     = admin_db.list_users()
 
@@ -320,8 +314,7 @@ class WebCGI:
             # 既存セッションに紐づくパスワードを使って自動的に再接続する
             password = session.get("password")
 
-        # 有効な認証情報(POSTされたパスワード、または同一ユーザの
-        # 有効なセッション)が無ければ認証待ちにする。root も例外にしない。
+        # 有効な認証情報が無ければ認証待ちにする
         need_password = not password
         auth_error    = None
         result        = ""
@@ -333,8 +326,7 @@ class WebCGI:
 
                 if is_new_login:
                     # 認証に成功した場合のみ新しいセッションを発行する
-                    # (root を含む全ユーザ共通。Cookie自体の有効期限も
-                    #  SessionStore側のTTLと合わせて30分にする)
+                    # Cookie自体の有効期限もSessionStore側のTTLと合わせる
                     new_session_id = self.session_store.create(user, password)
 
                     # HTTPS化した際は `; Secure` を追加すること
