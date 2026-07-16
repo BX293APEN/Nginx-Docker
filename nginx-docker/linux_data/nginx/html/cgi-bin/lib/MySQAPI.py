@@ -42,7 +42,7 @@ class MySQAPI():
         | `host` | `str` | 接続先ホスト名（MySQLコンテナ名など） | `DB_HOST` |
         | `port` | `int` | 接続先ポート番号 | `DB_PORT` |
         | `user` | `str` | 接続ユーザー名 | `DB_USER` |
-        | `password` | `str` | 接続パスワード | `DB_PASSWORD` |
+        | `password` | `str` | 接続パスワード | `DB_ROOT_PASSWORD` |
         | `database` | `str` | 使用するデータベース名 | `DB_NAME` |
         """
         self.databaseHost = mysql.connector.connect(
