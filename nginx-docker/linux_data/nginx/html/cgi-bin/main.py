@@ -157,7 +157,7 @@ class WebCGI:
         self.session_store  = SessionStore(ttl_seconds = self.SESSION_TTL_SECONDS)
         self.defaultUser = os.environ.get("DB_USER", "root")
 
-    def build_database_options(self, databases, selected = None, user = "root"):
+    def build_database_options(self, databases, selected = None, user = None):
         """
         #### データベース選択用プルダウンの選択肢HTMLを生成する
 
@@ -180,6 +180,8 @@ class WebCGI:
         """
         if not databases:
             return '<li><span class="dropdown-item-text text-muted">データベースがありません</span></li>'
+        
+        user = user or self.defaultUser
 
         items = []
         for name in databases:
