@@ -67,6 +67,7 @@ services:
       # | 項目 | 内容 |
       # | --- | --- |
       # | ${DB_HOST}:${DB_PORT} | データベースコンテナにアクセス |
+      # | ${DB_ROOT_USER}/${DB_ROOT_PASSWORD} | データベースコンテナの管理者認証情報 |
       # | ${DB_USER}/${DB_PASSWORD} | データベースコンテナの認証情報 |
       # | ${DB_NAME} | デフォルトで使用するデータベース名 |
       #
@@ -75,6 +76,8 @@ services:
       - LANG=${LANG}
       - DB_HOST=${DB_CONTAINER_NAME}
       - DB_PORT=${DB_PORT}
+      - DB_ROOT_USER=root
+      - DB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
